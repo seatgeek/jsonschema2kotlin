@@ -37,3 +37,17 @@ val Schema.type: SchemaType
         } ?: throw IllegalStateException("Trying to parse Schema.type failed for $this")
     }
 
+fun Schema.requireObject() {
+    if (type != SchemaType.OBJECT) {
+        throw IllegalStateException("Schema is not an object")
+    }
+}
+
+val Schema.isEnum: Boolean
+    get() = this.enums != null
+
+fun Schema.requireEnum() {
+    if (!isEnum) {
+        throw IllegalStateException("Schema is not an enum")
+    }
+}

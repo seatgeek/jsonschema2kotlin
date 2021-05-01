@@ -18,7 +18,9 @@ dependencies {
     // Used for JsonSchema parsing
     // implementation("net.jimblackler.jsonschemafriend:core:0.10.5")
     implementation("com.github.jimblackler.jsonschemafriend:core:0.10.5")
-    implementation("com.squareup:kotlinpoet:1.8.0")
+
+    // API since TypeSpec, ParameterSpec, PropertySpec are shared in Interceptor implementations
+    api("com.squareup:kotlinpoet:1.8.0")
     implementation("com.squareup.okio:okio:3.0.0-alpha.4")
 
 

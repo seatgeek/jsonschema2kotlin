@@ -1,6 +1,10 @@
 package com.seatgeek.jsonschema2kotlin
 
+import com.seatgeek.jsonschema2kotlin.interceptor.DataClassInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.EnumInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.PropertyInterceptor
 import com.seatgeek.jsonschema2kotlin.writer.SinkFactory
+import com.seatgeek.jsonschema2kotlin.writer.kotlin.KotlinDefaults
 import com.seatgeek.jsonschema2kotlin.writer.kotlin.KotlinWriter
 import net.jimblackler.jsonschemafriend.Schema
 import net.jimblackler.jsonschemafriend.SchemaStore
@@ -39,24 +43,8 @@ class Generator private constructor(private val config: Builder.Config) {
 
     class Builder internal constructor(private var config: Config) {
 
-        // TODO might regret making this only the raw String instead of the full Schema
-        fun addClassNameDecorator(decorator: StringDecorator): Builder {
-            config = config.copy(classNameDecorators = config.classNameDecorators.plus(decorator))
-            return this
-        }
-
-        fun addPropertyNameDecorator(decorator: StringDecorator): Builder {
-            config = config.copy(propertyNameDecorators = config.propertyNameDecorators.plus(decorator))
-            return this
-        }
-
-        fun withPackageName(name: String): Builder {
-            config = config.copy(packageName = name)
-            return this
-        }
-
-        fun withParcelize(parcelize: Boolean): Builder {
-            config = config.copy(parcelize = parcelize)
+        fun updateConfig(body: (Config) -> Config): Builder {
+            this.config = body(config)
             return this
         }
 
@@ -67,25 +55,24 @@ class Generator private constructor(private val config: Builder.Config) {
         data class Config(
             val inputs: List<File>,
             val output: Output,
-            // TODO for something like Gson, we might want to allow Class/Enum decorators that give the TypeSpec
 
             // TODO move these options to Language-level options?
             val packageName: String = "",
             val parcelize: Boolean = false,
             /**
-             * Decorator applied to the class name to decide its final class name
+             * Interceptors applied to data classes
              *
-             * An example implementation migth be prefixing all of the class names with Api and suffixing it with Model
+             * An example implementation would be prefixing all of the class names with Api and suffixing it with Model
              */
-            val classNameDecorators: List<StringDecorator> = emptyList(),
+            val classInterceptors: List<DataClassInterceptor> = KotlinDefaults.defaultDataClassInterceptors(),
             /**
-             * Decorator applied to the property name to decide its final class name
+             * Interceptors applied to the properties
              */
-            val propertyNameDecorators: List<StringDecorator> = emptyList(),
+            val propertyInterceptors: List<PropertyInterceptor> = KotlinDefaults.defaultPropertyInterceptors(),
             /**
-             * Decorator applied to the enum class values to decide their final value name
+             * Interceptors applied to the enum classes
              */
-            val enumValueNameDecorators: List<StringDecorator> = emptyList(),
+            val enumInterceptors: List<EnumInterceptor> = KotlinDefaults.defaultEnumInterceptors(),
         )
     }
 
@@ -96,9 +83,7 @@ class Generator private constructor(private val config: Builder.Config) {
     }
 }
 
-sealed class Input {
-    data class Paths(val paths: List<File>) : Input()
-}
+data class Input(val paths: List<File>)
 
 sealed class Output {
     data class Directory(val directory: File) : Output()
@@ -107,4 +92,3 @@ sealed class Output {
     }
 }
 
-typealias StringDecorator = (name: String) -> String

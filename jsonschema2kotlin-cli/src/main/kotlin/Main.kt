@@ -1,16 +1,15 @@
 @file:JvmName("Main")
+
 package com.seatgeek.jsonschema2kotlin.app
 
 import com.seatgeek.jsonschema2kotlin.Generator
 import com.seatgeek.jsonschema2kotlin.Output
-import kotlinx.cli.*
+import kotlinx.cli.ArgParser
+import kotlinx.cli.ArgType
+import kotlinx.cli.default
+import kotlinx.cli.vararg
+import util.listFilesRecursive
 import java.io.File
-
-private data class Options(
-    val input: List<File>,
-    val output: Output,
-    val packageName: String?,
-)
 
 /**
  * Arg parsing: https://github.com/Kotlin/kotlinx-cli
@@ -18,61 +17,57 @@ private data class Options(
 fun main(args: Array<String>) {
     val parser = ArgParser("jsonschema2kotlin")
 
-    val input by parser.argument(
+    val inputArg by parser.argument(
         ArgType.String,
         description = "Input JsonSchema file(s) and director[y/ies]"
     ).vararg()
 
-    val output by parser.option(
+    val outputArg by parser.option(
         ArgType.String,
         shortName = "o",
         description = "Output directory"
     ).default(Output.Stdout.NAME)
 
-    val packageName by parser.option(
+    val packageNameArg by parser.option(
         ArgType.String,
         shortName = "p",
         description = "Package name",
         fullName = "package-name"
     ).default("")
 
-    // TODO Conceptually, this project could be more than Kotlin (producing e.g. Markdown), maybe consider format/language
-    //   args (and maybe also a project rename...?
+    val classNameFormatArg by parser.option(
+        ArgType.String,
+        shortName = "fc",
+        description = "A sprintf format string for class names, e.g. \"Api%sModel\"",
+    )
+
+    val propertyNameFormatArg by parser.option(
+        ArgType.String,
+        shortName = "fp",
+        description = "A sprintf format string for property names, e.g. \"apiProp%s\"",
+    )
 
     parser.parse(args)
 
-    val inArgs = input.map { File(it) }
-        // Only non-null if all args are a file or a directory
-        .takeIf { file -> file.all { it.isFile || it.isDirectory } }
-        ?: throw IllegalArgumentException("Input files must all be files and directories")
+    val classNameInterceptors = classNameFormatArg?.let(::StringClassNameInterceptors)?.let(::listOf) ?: emptyList()
+    val propertyNameInterceptors = propertyNameFormatArg?.let(::StringPropertyNameInterceptor)?.let(::listOf) ?: emptyList()
 
-    val outputResult = if (output == Output.Stdout.NAME) {
-        Output.Stdout
-    } else {
-        val outputFile = File(output)
-        when {
-            outputFile.isDirectory -> Output.Directory(outputFile)
-            else -> null
-        }
-    } ?: throw IllegalArgumentException("Output must be a directory, was '$output'")
+    val inFiles = inputArg.map { File(it) }
+        .flatMap { it.listFilesRecursive() }
 
-    val options = Options(
-        input = inArgs,
-        output = outputResult,
-        packageName = packageName
-    )
+    val output = when (outputArg) {
+        Output.Stdout.NAME -> Output.Stdout
+        else -> File(outputArg).takeIf { it.isDirectory }?.let(Output::Directory)
+    } ?: throw IllegalArgumentException("Output must be a directory, was '$outputArg'")
 
-    build(options)
-}
-
-private fun build(options: Options) {
-    val generator = Generator.builder(options.input, options.output)
-        .apply {
-            if (options.packageName?.isNotEmpty() == true) {
-                withPackageName(options.packageName)
-            }
+    Generator.builder(inFiles, output)
+        .updateConfig {
+            it.copy(
+                packageName = packageNameArg,
+                classInterceptors = it.classInterceptors.plus(classNameInterceptors),
+                propertyInterceptors = it.propertyInterceptors.plus(propertyNameInterceptors)
+            )
         }
         .build()
-
-    generator.generate()
+        .generate()
 }
