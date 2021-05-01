@@ -4,6 +4,9 @@ plugins {
 }
 
 allprojects {
+    group = "com.seatgeek.jsonschem2kotlin"
+    version = "0.1-SNAPSHOT"
+
     tasks.withType<JavaCompile> {
         sourceCompatibility = "1.8"
         targetCompatibility = "1.8"
@@ -15,4 +18,7 @@ allprojects {
 }
 
 dependencies {
+    subprojects.forEach {
+        archives(it)
+    }
 }

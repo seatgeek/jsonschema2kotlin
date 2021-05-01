@@ -1,3 +1,4 @@
+@file:JvmName("Main")
 package com.seatgeek.jsonschema2kotlin.app
 
 import com.seatgeek.jsonschema2kotlin.Generator
@@ -8,7 +9,7 @@ import java.io.File
 private data class Options(
     val input: List<File>,
     val output: Output,
-    val packageName: String?
+    val packageName: String?,
 )
 
 /**
@@ -33,11 +34,16 @@ fun main(args: Array<String>) {
         shortName = "p",
         description = "Package name",
         fullName = "package-name"
-    )
+    ).default("")
+
+    // TODO Conceptually, this project could be more than Kotlin (producing e.g. Markdown), maybe consider format/language
+    //   args (and maybe also a project rename...?
 
     parser.parse(args)
 
-    val inArgs = input.map { File(it) }.takeIf { file -> file.all { it.isFile || it.isDirectory } }
+    val inArgs = input.map { File(it) }
+        // Only non-null if all args are a file or a directory
+        .takeIf { file -> file.all { it.isFile || it.isDirectory } }
         ?: throw IllegalArgumentException("Input files must all be files and directories")
 
     val outputResult = if (output == Output.Stdout.NAME) {
@@ -46,10 +52,9 @@ fun main(args: Array<String>) {
         val outputFile = File(output)
         when {
             outputFile.isDirectory -> Output.Directory(outputFile)
-            outputFile.isFile -> Output.File(outputFile)
             else -> null
         }
-    } ?: throw IllegalArgumentException("Output must be a file or directory, was '$output'")
+    } ?: throw IllegalArgumentException("Output must be a directory, was '$output'")
 
     val options = Options(
         input = inArgs,
@@ -64,10 +69,10 @@ private fun build(options: Options) {
     val generator = Generator.builder(options.input, options.output)
         .apply {
             if (options.packageName?.isNotEmpty() == true) {
-                packageName(options.packageName)
+                withPackageName(options.packageName)
             }
         }
         .build()
 
-    generator.produce()
+    generator.generate()
 }
