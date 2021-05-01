@@ -32,6 +32,11 @@ import java.io.File
  *  - JsonSchema number as [Double]
  *  - JsonSchema array of any of the other supported types as [List] parameterized by the appropriate type in Kotlin
  *  - JsonSchema object as `data class` in Kotlin with properties of type object or any other supported type
+ *
+ * Notable missing support:
+ *  - anyOf
+ *  - allOf
+ *  - oneOf
  */
 class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWriter {
     private val packagePath =
@@ -44,7 +49,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
         sink.buffer()
             .write(
                 FileSpec.builder(config.packageName, schema.objectClassNameString)
-                    .addType(createClass(schema))
+                    .addType(createClass(emptyList(), schema))
                     .build()
                     .toString()
                     .toByteArray()
@@ -55,24 +60,23 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
     // Implementation
 
     private fun getRelativeFilePath(schema: Schema): String {
-        return packagePath + schema.typeName + ".kt"
+        return packagePath + schema.objectClassNameString + ".kt"
     }
 
-    private fun createClass(schema: Schema): TypeSpec {
+    private fun createClass(parents: List<ClassName>, schema: Schema): TypeSpec {
         return if (schema.isEnum) {
             // Enum (enum class)
-            createEnumClass(schema)
+            createEnumClass(parents, schema)
         } else {
-
             // Object (data class)
-            createDataClass(schema)
+            createDataClass(parents, schema)
         }
     }
 
-    private fun createEnumClass(schema: Schema): TypeSpec {
+    private fun createEnumClass(parents: List<ClassName>, schema: Schema): TypeSpec {
         schema.requireEnum()
 
-        return TypeSpec.enumBuilder(schema.enumClassName)
+        return TypeSpec.enumBuilder(schema.fqEnumClassName(config.packageName, parents))
             .addKdoc(schema.description ?: "")
             .apply {
                 schema.enums
@@ -85,8 +89,13 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
     }
 
     private fun createDataClass(
+        parents: List<ClassName>,
         schema: Schema
     ): TypeSpec {
+        schema.requireObject()
+
+        val className = schema.fqDataClassName(config.packageName, parents)
+
         val subtypes = listOfNotNull(schema.items)
             .asSequence()
             .plus(schema.itemsTuple ?: emptyList())
@@ -110,7 +119,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
                 .filter { it.isEnum })
 
             .filterNotNull()
-            .associate { it.title to createClass(it) }
+            .associate { it.title to createClass(parents.plus(className), it) }
 
         val properties = schema.properties.map {
             val schemaPropertyName = it.key
@@ -123,7 +132,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             )
         }.sortedBy { it.kotlinPropertyName }
 
-        return TypeSpec.classBuilder(schema.objectClassName)
+        return TypeSpec.classBuilder(className)
             .addModifiers(KModifier.DATA)
             .apply {
                 // Write subtypes
@@ -132,7 +141,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
                 primaryConstructor(
                     FunSpec.constructorBuilder()
                         .apply {
-                            properties.forEach { addParameter(it.poetConstructorParameter) }
+                            properties.forEach { addParameter(it.poetConstructorParameter(config.packageName, parents.plus(className))) }
                         }
                         .build()
                 )
@@ -140,7 +149,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
                 // Write properties
                 // These have to be written as properties in order for kotlin poet to register them as vals in the constructor
                 properties.forEach {
-                    addProperty(it.poetProperty)
+                    addProperty(it.poetProperty(config.packageName, parents.plus(className)))
                 }
             }
             .build()
@@ -155,20 +164,21 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
         val required: Boolean,
     )
 
-    private val Property.poetProperty: PropertySpec
-        get() = PropertySpec.builder(
+    private fun Property.poetProperty(packageName: String, parents: List<ClassName>): PropertySpec {
+        return PropertySpec.builder(
             name = kotlinPropertyName,
-            type = schema.typeName.nullable(!required),
+            type = schema.typeName(packageName, parents).nullable(!required),
             modifiers = listOf()
         )
             .initializer(kotlinPropertyName)
             .build()
+    }
 
-    private val Property.poetConstructorParameter: ParameterSpec
-        get() = ParameterSpec.builder(
+    private fun Property.poetConstructorParameter(packageName: String, parents: List<ClassName>): ParameterSpec {
+        return ParameterSpec.builder(
             name = kotlinPropertyName,
             // TODO likely have to resolve subclassing going on here
-            type = schema.typeName.nullable(!required),
+            type = schema.typeName(packageName, parents).nullable(!required),
             modifiers = listOf(KModifier.PUBLIC)
         )
             .apply {
@@ -179,6 +189,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             .addKdoc(schema.title ?: "")
             .addKdoc(schema.description ?: "")
             .build()
+    }
 
     // Objects
     private val Schema.objectClassNameString: String
@@ -187,11 +198,10 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             return KotlinUtils.createSafeClassName(this.title, config.classNameDecorators)
         }
 
-    private val Schema.objectClassName: ClassName
-        get() {
-            requireObject()
-            return ClassName(config.packageName, objectClassNameString)
-        }
+    private fun Schema.fqDataClassName(packageName: String, parents: List<ClassName>): ClassName {
+        requireObject()
+        return ClassName(packageName, parents.map { it.simpleName }.plus(objectClassNameString))
+    }
 
     private fun Schema.requireObject() {
         if (type != SchemaType.OBJECT) {
@@ -215,28 +225,28 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             return KotlinUtils.createSafeClassName(this.title, config.classNameDecorators)
         }
 
-    private val Schema.enumClassName: ClassName
-        get() {
-            requireEnum()
-            return ClassName(config.packageName, enumClassNameString)
-        }
+    private fun Schema.fqEnumClassName(packageName: String, parents: List<ClassName>): ClassName {
+        requireEnum()
+        return ClassName(packageName, parents.map { it.simpleName }.plus(enumClassNameString))
+    }
 
     /**
      * The [TypeName] for use with KotlinPoet based on the JsonSchema defined type info
      *
      * If this is an enum or an object, this will be the class name
      */
-    private val Schema.typeName: TypeName
-        get() = if (isEnum) {
-            enumClassName
+    private fun Schema.typeName(packageName: String, parents: List<ClassName>): TypeName {
+        return if (isEnum) {
+            fqEnumClassName(packageName, parents)
         } else {
             when (type) {
                 SchemaType.STRING -> String::class.asTypeName()
-                SchemaType.OBJECT -> objectClassName
+                SchemaType.OBJECT -> fqDataClassName(packageName, parents)
                 SchemaType.INTEGER -> Long::class.asTypeName()
-                SchemaType.ARRAY -> List::class.asTypeName().parameterizedBy(this.items.typeName)
+                SchemaType.ARRAY -> List::class.asTypeName().parameterizedBy(this.items.typeName(packageName, parents))
                 SchemaType.BOOLEAN -> Boolean::class.asTypeName()
                 SchemaType.NUMBER -> Double::class.asTypeName()
             }
         }
+    }
 }

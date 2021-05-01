@@ -36,3 +36,4 @@ val Schema.type: SchemaType
             SchemaType.fromString(it)
         } ?: throw IllegalStateException("Trying to parse Schema.type failed for $this")
     }
+

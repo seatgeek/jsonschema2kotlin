@@ -18,8 +18,14 @@ fun interface SinkFactory {
         fun files(rootDirectory: File): SinkFactory = rootDirectory.takeIf { it.isDirectory }
             ?.absolutePath
             ?.let { rootPath ->
-                return SinkFactory {
-                    FileOutputStream(rootPath + File.separator + it).sink()
+                return SinkFactory { relativeFilePath ->
+                    val file = File(rootPath + File.separator + relativeFilePath)
+                        // Ensure the directories exist up to the file
+                        .also {
+                            it.parentFile.mkdirs()
+                        }
+
+                    FileOutputStream(file).sink()
                 }
             } ?: throw IllegalStateException("$rootDirectory isn't a directory")
     }
