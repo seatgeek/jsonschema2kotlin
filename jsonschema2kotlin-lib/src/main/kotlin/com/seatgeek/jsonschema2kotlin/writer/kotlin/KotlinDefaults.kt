@@ -54,7 +54,7 @@ internal object SafePropertyNameInterceptor : PropertyInterceptor {
     )
 
     override fun intercept(schema: Schema, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec> {
-        return renameProperty(schema, specs) {
+        return renameProperty(specs) {
             it.replace("[^A-Za-z0-9]".toRegex(), " ")
                 .let {
                     // Uppercases new words' first letter; we don't lowercase the very first character because we don't know what the Interceptors will do
@@ -85,7 +85,7 @@ internal object SafePropertyNameInterceptor : PropertyInterceptor {
 internal object BooleanPropertyNamePrefixInterceptor : PropertyInterceptor {
     override fun intercept(schema: Schema, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec> {
         return if (schema.type == SchemaType.BOOLEAN) {
-            renameProperty(schema, specs) {
+            renameProperty(specs) {
                 "is" + it[0].toUpperCase() + it.substring(1)
             }
         } else {
@@ -149,7 +149,7 @@ internal object CommonCaseEnumClassInterceptor : EnumClassInterceptor {
     }
 }
 
-internal fun renameProperty(schema: Schema, specs: Pair<ParameterSpec, PropertySpec>, renamer: (String) -> String): Pair<ParameterSpec, PropertySpec> {
+internal fun renameProperty(specs: Pair<ParameterSpec, PropertySpec>, renamer: (String) -> String): Pair<ParameterSpec, PropertySpec> {
     val (paramSpec, propertySpec) = specs
 
     val newPropertyName = renamer(paramSpec.name)
