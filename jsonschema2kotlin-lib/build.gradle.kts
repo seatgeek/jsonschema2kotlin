@@ -20,11 +20,16 @@ dependencies {
     implementation("com.github.jimblackler.jsonschemafriend:core:0.10.5")
 
     // API since TypeSpec, ParameterSpec, PropertySpec are shared in Interceptor implementations
-    api("com.squareup:kotlinpoet:1.8.0")
+
+    // TODO update once https://github.com/square/kotlinpoet/pull/1075 merges
+    // api("com.squareup:kotlinpoet:1.8.0")
+    api(files("libs/kotlinpoet-1.9.0-SNAPSHOT-eff194b.jar"))
+
     implementation("com.squareup.okio:okio:3.0.0-alpha.4")
 
 
     testImplementation(kotlin("test-junit"))
+    testImplementation("org.mockito.kotlin:mockito-kotlin:3.1.0")
 }
 
 tasks.test {

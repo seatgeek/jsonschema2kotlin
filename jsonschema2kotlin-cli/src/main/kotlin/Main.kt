@@ -3,7 +3,6 @@
 package com.seatgeek.jsonschema2kotlin.app
 
 import com.seatgeek.jsonschema2kotlin.Generator
-import com.seatgeek.jsonschema2kotlin.Output
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.default
@@ -26,7 +25,7 @@ fun main(args: Array<String>) {
         ArgType.String,
         shortName = "o",
         description = "Output directory"
-    ).default(Output.Stdout.NAME)
+    ).default(Generator.Builder.Config.Output.Stdout.NAME)
 
     val packageNameArg by parser.option(
         ArgType.String,
@@ -37,8 +36,14 @@ fun main(args: Array<String>) {
 
     val classNameFormatArg by parser.option(
         ArgType.String,
-        shortName = "fc",
-        description = "A sprintf format string for class names, e.g. \"Api%sModel\"",
+        shortName = "fd",
+        description = "A sprintf format string for data class names, e.g. \"Api%sModel\"",
+    )
+
+    val enumNameFormatArg by parser.option(
+        ArgType.String,
+        shortName = "fe",
+        description = "A sprintf format string for enum class names, e.g. \"Api%sModel\""
     )
 
     val propertyNameFormatArg by parser.option(
@@ -49,22 +54,26 @@ fun main(args: Array<String>) {
 
     parser.parse(args)
 
-    val classNameInterceptors = classNameFormatArg?.let(::StringClassNameInterceptors)?.let(::listOf) ?: emptyList()
+    val dataClassNameInterceptors = classNameFormatArg?.let(::StringDataClassNameInterceptors)?.let(::listOf) ?: emptyList()
+    val enumClassNameInterceptors = enumNameFormatArg?.let(::StringEnumClassNameInterceptors)?.let(::listOf) ?: emptyList()
     val propertyNameInterceptors = propertyNameFormatArg?.let(::StringPropertyNameInterceptor)?.let(::listOf) ?: emptyList()
 
-    val inFiles = inputArg.map { File(it) }
-        .flatMap { it.listFilesRecursive() }
+    val inFiles = Generator.Builder.Config.Input(
+        inputArg.map { File(it) }
+            .flatMap { it.listFilesRecursive() }
+    )
 
     val output = when (outputArg) {
-        Output.Stdout.NAME -> Output.Stdout
-        else -> File(outputArg).takeIf { it.isDirectory }?.let(Output::Directory)
+        Generator.Builder.Config.Output.Stdout.NAME -> Generator.Builder.Config.Output.Stdout
+        else -> File(outputArg).takeIf { it.isDirectory }?.let(Generator.Builder.Config.Output::Directory)
     } ?: throw IllegalArgumentException("Output must be a directory, was '$outputArg'")
 
     Generator.builder(inFiles, output)
         .updateConfig {
             it.copy(
                 packageName = packageNameArg,
-                classInterceptors = it.classInterceptors.plus(classNameInterceptors),
+                dataClassInterceptors = it.dataClassInterceptors.plus(dataClassNameInterceptors),
+                enumClassClassInterceptors = it.enumClassClassInterceptors.plus(enumClassNameInterceptors),
                 propertyInterceptors = it.propertyInterceptors.plus(propertyNameInterceptors)
             )
         }

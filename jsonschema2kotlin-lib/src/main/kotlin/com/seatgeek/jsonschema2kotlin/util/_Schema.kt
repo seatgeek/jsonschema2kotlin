@@ -28,6 +28,7 @@ enum class SchemaType {
 val Schema.type: SchemaType
     get() {
         val schemaObject = schemaObject
+        explicitTypes
         return if (schemaObject is Map<*, *>) {
             schemaObject["type"] as? String
         } else {

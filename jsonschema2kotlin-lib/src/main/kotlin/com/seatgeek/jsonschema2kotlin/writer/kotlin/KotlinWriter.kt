@@ -42,23 +42,25 @@ import java.io.File
  *  - oneOf
  */
 class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWriter {
-    private val schemaTypeSpecs = mutableMapOf<Schema, TypeSpec>()
+    private val schemaRegistry = mutableMapOf<Schema, TypeSpec>()
 
     private val packagePath =
         config.packageName.replace(".", File.separator) + File.separator
 
     override fun write(sinkFactory: SinkFactory, schema: Schema) {
-        val rootTypeSpec = createClass(emptyList(), schema)
-
+        val rootTypeSpec = createClass(schema)
         val fileName = getRelativeFilePathAndName(rootTypeSpec)
-
         val rootClassName = requireNotNull(rootTypeSpec.name) { "Expecting root value to have a name" }
 
         sinkFactory.newFile(fileName)
             .buffer()
             .write(
                 FileSpec.builder(config.packageName, rootClassName)
-                    .addType(rootTypeSpec)
+                    .apply {
+                        schemaRegistry.values.reversed().forEach { typeSpec ->
+                            addType(typeSpec)
+                        }
+                    }
                     .build()
                     .toString()
                     .toByteArray()
@@ -68,32 +70,32 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
 
     // Implementation
 
-    private fun getRelativeFilePathAndName(typeSpec: TypeSpec): String {
-        return packagePath + typeSpec.name + ".kt"
-    }
+    private fun getRelativeFilePathAndName(typeSpec: TypeSpec): String = packagePath + typeSpec.name + ".kt"
 
-    private fun createClass(parents: List<ClassName>, schema: Schema): TypeSpec {
-        val typeSpec = if (schema.isEnum) {
+    private fun createClass(schema: Schema): TypeSpec {
+        return if (schema.isEnum) {
             // Enum (enum class)
-            createEnumClass(parents, schema)
+            createEnumClass(schema).let {
+                config.enumClassClassInterceptors.foldRight(it) { enumClassInterceptor, acc ->
+                    enumClassInterceptor.intercept(schema, acc)
+                }
+            }
         } else {
             // Object (data class)
-            createDataClass(parents, schema)
+            createDataClass(schema).let {
+                config.dataClassInterceptors.foldRight(it) { dataClassInterceptor, acc ->
+                    dataClassInterceptor.intercept(schema, acc)
+                }
+            }
+        }.also {
+            schemaRegistry[schema] = it
         }
-
-        registerSchemaTypeSpec(schema, typeSpec)
-
-        return typeSpec
     }
 
-    private fun registerSchemaTypeSpec(schema: Schema, typeSpec: TypeSpec) {
-        schemaTypeSpecs[schema] = typeSpec
-    }
-
-    private fun createEnumClass(parents: List<ClassName>, schema: Schema): TypeSpec {
+    private fun createEnumClass(schema: Schema): TypeSpec {
         schema.requireEnum()
 
-        return TypeSpec.enumBuilder(schema.fqEnumClassName(config.packageName, parents))
+        return TypeSpec.enumBuilder(ClassName(config.packageName, schema.title))
             .addKdoc(schema.description ?: "")
             .apply {
                 schema.enums
@@ -102,26 +104,13 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
                     .forEach(this::addEnumConstant)
             }
             .build()
-            .let {
-                config.enumInterceptors.foldRight(it) { enumInterceptor, typeSpec ->
-                    enumInterceptor.intercept(schema, typeSpec)
-                }
-            }
     }
 
-    private fun createDataClass(
-        parents: List<ClassName>,
-        schema: Schema
-    ): TypeSpec {
+    private fun createDataClass(schema: Schema): TypeSpec {
         schema.requireObject()
-
-        // TODO using title but might need a better name? like the key name from the dependent
-        // schema.dependentSchemas ?
-        val className = schema.fqDataClassName(config.packageName, parents)
 
         // This is only custom types and arrays
         val subtypes = listOfNotNull(schema.items)
-            .asSequence()
             .plus(schema.itemsTuple ?: emptyList())
             .plus(schema.additionalItems)
 
@@ -143,15 +132,16 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
                 .filter { it.isEnum })
 
             .filterNotNull()
-            .associate { it.title to createClass(parents.plus(className), it) }
+            .map { createClass(it) }
 
         val properties = schema.properties.map {
             val schemaPropertyName = it.key
+            val propertySchema = it.value
 
             Property(
                 schemaPropertyName = schemaPropertyName,
-                schema = it.value,
-                typeName = schema.typeName(config.packageName, parents.plus(className), schema.requiredProperties.contains(it.key)),
+                schema = propertySchema,
+                typeName = propertySchema.typeName(config.packageName, schema.requiredProperties.contains(schemaPropertyName)),
                 required = schema.requiredProperties.contains(schemaPropertyName)
             )
         }.map {
@@ -167,12 +157,9 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             it.second.first.name
         }
 
-        return TypeSpec.classBuilder(className)
+        return TypeSpec.classBuilder(ClassName(config.packageName, schema.title))
             .addModifiers(KModifier.DATA)
             .apply {
-                // Write subtypes
-                subtypes.values.forEach(this::addType)
-
                 primaryConstructor(
                     FunSpec.constructorBuilder()
                         .apply { properties.forEach { addParameter(it.second.first) } }
@@ -184,11 +171,6 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
                 properties.forEach { addProperty(it.second.second) }
             }
             .build()
-            .let { inTypeSpec ->
-                config.classInterceptors.foldRight(inTypeSpec) { dataClassInterceptor, typeSpec ->
-                    dataClassInterceptor.intercept(schema, typeSpec)
-                }
-            }
     }
 
     // End implementation
@@ -226,16 +208,15 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             .build()
     }
 
-    private fun Schema.fqDataClassName(packageName: String, parents: List<ClassName>): ClassName {
+    private fun Schema.fqDataClassName(packageName: String): ClassName {
         requireObject()
         // TODO using title but might need a better name? like the key name from the dependent
-        return ClassName(packageName, parents.map { it.simpleName }.plus(title))
+        return ClassName(packageName, schemaRegistry[this]?.name ?: "OHFUCK")
     }
 
-    private fun Schema.fqEnumClassName(packageName: String, parents: List<ClassName>): ClassName {
+    private fun Schema.fqEnumClassName(packageName: String): ClassName {
         requireEnum()
-        // TODO using title but might need a better name? like the key name from the dependent
-        return ClassName(packageName, parents.map { it.simpleName }.plus(title))
+        return ClassName(packageName, schemaRegistry[this]?.name ?: "OHFUCK")
     }
 
     /**
@@ -243,10 +224,10 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
      *
      * If this is an enum or an object, this will be the class name
      */
-    private fun Schema.typeName(packageName: String, parents: List<ClassName>, isRequired: Boolean): TypeName = when {
-        isEnum -> fqEnumClassName(packageName, parents)
-        type == SchemaType.OBJECT -> fqDataClassName(packageName, parents)
-        type == SchemaType.ARRAY -> List::class.asTypeName().parameterizedBy(this.items.typeName(packageName, parents, isRequired))
+    private fun Schema.typeName(packageName: String, isRequired: Boolean): TypeName = when {
+        isEnum -> fqEnumClassName(packageName)
+        type == SchemaType.OBJECT -> fqDataClassName(packageName)
+        type == SchemaType.ARRAY -> List::class.asTypeName().parameterizedBy(this.items.typeName(packageName, isRequired))
         else -> primitiveTypeName()
     }.nullable(!isRequired)
 
