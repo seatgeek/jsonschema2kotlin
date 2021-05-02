@@ -3,9 +3,14 @@
 package com.seatgeek.jsonschema2kotlin.app
 
 import com.seatgeek.jsonschema2kotlin.Generator
+import com.seatgeek.jsonschema2kotlin.interceptor.DataClassInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.EnumClassInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.PropertyInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.recipes.ParcelizeDataClassInterceptor
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.default
+import kotlinx.cli.delimiter
 import kotlinx.cli.vararg
 import util.listFilesRecursive
 import java.io.File
@@ -24,7 +29,8 @@ fun main(args: Array<String>) {
     val outputArg by parser.option(
         ArgType.String,
         shortName = "o",
-        description = "Output directory"
+        fullName = "output",
+        description = "Output directory; emission = STDOUT"
     ).default(Generator.Builder.Config.Output.Stdout.NAME)
 
     val packageNameArg by parser.option(
@@ -37,20 +43,37 @@ fun main(args: Array<String>) {
     val classNameFormatArg by parser.option(
         ArgType.String,
         shortName = "fd",
+        fullName = "data-class-name-format",
         description = "A sprintf format string for data class names, e.g. \"Api%sModel\"",
     )
 
     val enumNameFormatArg by parser.option(
         ArgType.String,
         shortName = "fe",
+        fullName = "enum-class-name-format",
         description = "A sprintf format string for enum class names, e.g. \"Api%sModel\""
     )
 
     val propertyNameFormatArg by parser.option(
         ArgType.String,
         shortName = "fp",
+        fullName = "property-name-format",
         description = "A sprintf format string for property names, e.g. \"apiProp%s\"",
     )
+
+    val recipes by parser.option(
+        ArgType.Choice(
+            choices = Recipes.values().toList(),
+            toVariant = {
+                Recipes.valueOf(it)
+            },
+            variantToString = {
+                it.name
+            }
+        ),
+        shortName = "r",
+        fullName = "recipes"
+    ).delimiter(",")
 
     parser.parse(args)
 
@@ -72,11 +95,27 @@ fun main(args: Array<String>) {
         .updateConfig {
             it.copy(
                 packageName = packageNameArg,
-                dataClassInterceptors = it.dataClassInterceptors.plus(dataClassNameInterceptors),
-                enumClassClassInterceptors = it.enumClassClassInterceptors.plus(enumClassNameInterceptors),
-                propertyInterceptors = it.propertyInterceptors.plus(propertyNameInterceptors)
+                dataClassInterceptors = it.dataClassInterceptors
+                    .plus(dataClassNameInterceptors)
+                    .plus(recipes.flatMap { it.interceptors.dataClassNameInterceptors }),
+                enumClassClassInterceptors = it.enumClassClassInterceptors
+                    .plus(enumClassNameInterceptors)
+                    .plus(recipes.flatMap { it.interceptors.enumClassNameInterceptors }),
+                propertyInterceptors = it.propertyInterceptors
+                    .plus(propertyNameInterceptors)
+                    .plus(recipes.flatMap { it.interceptors.propertyInterceptors })
             )
         }
         .build()
         .generate()
+}
+
+internal enum class Recipes(val interceptors: Interceptors) {
+    PARCELIZE(Interceptors(dataClassNameInterceptors = listOf(ParcelizeDataClassInterceptor)));
+
+    internal data class Interceptors(
+        val dataClassNameInterceptors: List<DataClassInterceptor> = emptyList(),
+        val enumClassNameInterceptors: List<EnumClassInterceptor> = emptyList(),
+        val propertyInterceptors: List<PropertyInterceptor> = emptyList(),
+    )
 }

@@ -3,6 +3,8 @@ package com.seatgeek.jsonschema2kotlin.writer.kotlin
 import com.seatgeek.jsonschema2kotlin.interceptor.DataClassInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.EnumClassInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.PropertyInterceptor
+import com.seatgeek.jsonschema2kotlin.util.SchemaType
+import com.seatgeek.jsonschema2kotlin.util.type
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
@@ -13,7 +15,7 @@ object KotlinDefaults {
 
     fun defaultEnumInterceptors(): List<EnumClassInterceptor> = listOf(CommonCaseEnumClassInterceptor)
 
-    fun defaultPropertyInterceptors(): List<PropertyInterceptor> = listOf(SafePropertyNameInterceptor)
+    fun defaultPropertyInterceptors(): List<PropertyInterceptor> = listOf(SafePropertyNameInterceptor, BooleanPropertyNamePrefixInterceptor)
 }
 
 /**
@@ -52,41 +54,43 @@ internal object SafePropertyNameInterceptor : PropertyInterceptor {
     )
 
     override fun intercept(schema: Schema, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec> {
-        val (paramSpec, propertySpec) = specs
+        return renameProperty(schema, specs) {
+            it.replace("[^A-Za-z0-9]".toRegex(), " ")
+                .let {
+                    // Uppercases new words' first letter; we don't lowercase the very first character because we don't know what the Interceptors will do
+                    it.toCharArray().mapIndexed { index, c ->
+                        // Uppercase everything after replaced bad chars for UpperCamelCase
+                        if (index == 0 || it[index - 1] == ' ') {
+                            c.toUpperCase()
+                        } else {
+                            c
+                        }
+                    }.joinToString("")
+                }
+                .replace(" ", "")
+                // Now lowercase first letter
+                .let {
+                    it[0].toLowerCase() + it.substring(1)
+                }
+                // Hard keywords from https://www.programiz.com/kotlin-programming/keywords-identifiers
+                // Replaces only if it's exactly and only the word
+                .replace(
+                    regex = "^(${reservedKeywords.joinToString("|")})$".toRegex(),
+                    replacement = "\$1_"
+                )
+        }
+    }
+}
 
-        val newPropertyName = paramSpec.name
-            .replace("[^A-Za-z0-9]".toRegex(), " ")
-            .let {
-                // Uppercases new words' first letter; we don't lowercase the very first character because we don't know what the Interceptors will do
-                it.toCharArray().mapIndexed { index, c ->
-                    // Uppercase everything after replaced bad chars for UpperCamelCase
-                    if (index == 0 || it[index - 1] == ' ') {
-                        c.toUpperCase()
-                    } else {
-                        c
-                    }
-                }.joinToString("")
+internal object BooleanPropertyNamePrefixInterceptor : PropertyInterceptor {
+    override fun intercept(schema: Schema, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec> {
+        return if (schema.type == SchemaType.BOOLEAN) {
+            renameProperty(schema, specs) {
+                "is" + it[0].toUpperCase() + it.substring(1)
             }
-            .replace(" ", "")
-            // Now lowercase first letter
-            .let {
-                it[0].toLowerCase() + it.substring(1)
-            }
-            // Hard keywords from https://www.programiz.com/kotlin-programming/keywords-identifiers
-            // Replaces only if it's exactly and only the word
-            .replace(
-                ("^(" + reservedKeywords.joinToString("|") + ")$").toRegex(),
-                "\$1_"
-            )
-
-
-        return Pair(
-            paramSpec.toBuilder(newPropertyName)
-                .build(),
-            propertySpec.toBuilder(newPropertyName)
-                .initializer(newPropertyName)
-                .build()
-        )
+        } else {
+            specs
+        }
     }
 }
 
@@ -143,4 +147,18 @@ internal object CommonCaseEnumClassInterceptor : EnumClassInterceptor {
             }
             .build()
     }
+}
+
+internal fun renameProperty(schema: Schema, specs: Pair<ParameterSpec, PropertySpec>, renamer: (String) -> String): Pair<ParameterSpec, PropertySpec> {
+    val (paramSpec, propertySpec) = specs
+
+    val newPropertyName = renamer(paramSpec.name)
+
+    return Pair(
+        paramSpec.toBuilder(newPropertyName)
+            .build(),
+        propertySpec.toBuilder(newPropertyName)
+            .initializer(newPropertyName)
+            .build()
+    )
 }

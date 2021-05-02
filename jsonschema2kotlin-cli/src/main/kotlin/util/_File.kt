@@ -9,4 +9,4 @@ fun File.listFilesRecursive(): List<File> = listFiles()
         } else {
             listOf(it)
         }
-    } ?: throw IllegalStateException("Listing files failed for $this")
+    } ?: throw IllegalStateException("Listing files failed for ${this.absolutePath}")

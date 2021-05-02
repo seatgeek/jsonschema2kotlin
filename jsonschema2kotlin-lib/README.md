@@ -3,6 +3,25 @@
 This is the core library that implements conversion from JsonSchema into Kotlin data class
 implementations.
 
+## Usage
+
+```kotlin
+val input = Config.Input(listOf(File("SchemaFile1.json"), File("SchemaFile2.json")))
+val output = Config.Output.Directory(File("outputs/"))
+
+Generator.builder(input, output)
+    .build()
+    .generate()
+```
+
+### Interceptors
+
+You can customize the output of the generated code by adding various interceptors to the `Generator` when building.
+
+```kotlin
+Interceptor
+```
+
 ## Dependencies & acknowledgements
 
 - kotlinpoet
