@@ -16,7 +16,8 @@ Options:
     --data-class-name-format, -fd -> A sprintf format string for data class names, e.g. "Api%sModel" { String }
     --enum-class-name-format, -fe -> A sprintf format string for enum class names, e.g. "Api%sModel" { String }
     --property-name-format, -fp -> A sprintf format string for property names, e.g. "apiProp%s" { String }
-    --help, -h -> Usage info
+    --recipes, -r { Value should be one of [PARCELIZE] }
+    --help, -h -> Usage info 
 ```
 
 A command which formats data classes as `Sg[Name]ApiModel`, enum classes as `Sg[Name]Enum`, properties on data classes as `psh[name]`, with a package of
