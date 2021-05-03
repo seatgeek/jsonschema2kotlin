@@ -1,9 +1,11 @@
 package com.seatgeek.jsonschema2kotlin.writer.kotlin
 
+import com.seatgeek.jsonschema2kotlin.writer.kotlin.interceptor.SafeClassNameInterceptor
 import com.squareup.kotlinpoet.TypeSpec
 import org.junit.Test
 import org.mockito.kotlin.mock
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 internal class SafeClassNameInterceptorTest {
     @Test

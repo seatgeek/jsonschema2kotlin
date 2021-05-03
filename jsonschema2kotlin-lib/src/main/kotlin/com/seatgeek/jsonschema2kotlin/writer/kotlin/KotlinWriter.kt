@@ -73,22 +73,23 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
     private fun getRelativeFilePathAndName(typeSpec: TypeSpec): String = packagePath + typeSpec.name + ".kt"
 
     private fun createClass(schema: Schema): TypeSpec {
-        return if (schema.isEnum) {
-            // Enum (enum class)
-            createEnumClass(schema).let {
-                config.enumClassClassInterceptors.foldRight(it) { enumClassInterceptor, acc ->
-                    enumClassInterceptor.intercept(schema, acc)
+        // The get or put prevents recursion and generating multiple of the same class
+        return schemaRegistry.getOrPut(schema) {
+            if (schema.isEnum) {
+                // Enum (enum class)
+                createEnumClass(schema).let {
+                    config.enumClassClassInterceptors.foldRight(it) { enumClassInterceptor, acc ->
+                        enumClassInterceptor.intercept(schema, acc)
+                    }
+                }
+            } else {
+                // Object (data class)
+                createDataClass(schema).let {
+                    config.dataClassInterceptors.foldRight(it) { dataClassInterceptor, acc ->
+                        dataClassInterceptor.intercept(schema, acc)
+                    }
                 }
             }
-        } else {
-            // Object (data class)
-            createDataClass(schema).let {
-                config.dataClassInterceptors.foldRight(it) { dataClassInterceptor, acc ->
-                    dataClassInterceptor.intercept(schema, acc)
-                }
-            }
-        }.also {
-            schemaRegistry[schema] = it
         }
     }
 
@@ -149,7 +150,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             val propertySpec = it.createKotlinPoetProperty()
 
             val specs = config.propertyInterceptors.foldRight(Pair(parameterSpec, propertySpec)) { propertyInterceptor, acc ->
-                propertyInterceptor.intercept(it.schema, acc)
+                propertyInterceptor.intercept(it.schema, propertySpec.getJsonName(), acc)
             }
 
             it to specs
@@ -188,6 +189,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             type = typeName,
             modifiers = listOf()
         )
+            .addJsonName(schemaPropertyName)
             .initializer(schemaPropertyName)
             .build()
     }
@@ -244,4 +246,14 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
     } else {
         null
     } ?: throw IllegalStateException("Trying to get primitive type name for a complex object (Array/Object/Enum), $this")
+
+    private fun PropertySpec.Builder.addJsonName(jsonRawName: String) = apply {
+        tag(RawPropertyName::class, RawPropertyName(jsonRawName))
+    }
+
+    private fun PropertySpec.getJsonName(): String {
+        return tag(RawPropertyName::class)?.rawName ?: throw IllegalStateException("Missing Json property name from property")
+    }
+
+    data class RawPropertyName(val rawName: String)
 }

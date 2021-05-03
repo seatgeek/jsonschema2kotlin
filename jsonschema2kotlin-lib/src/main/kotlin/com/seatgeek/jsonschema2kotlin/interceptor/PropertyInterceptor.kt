@@ -32,5 +32,21 @@ import net.jimblackler.jsonschemafriend.Schema
  * ```
  */
 fun interface PropertyInterceptor {
-    fun intercept(schema: Schema, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec>
+    fun intercept(schema: Schema, jsonPropertyName: String, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec>
+
+    companion object {
+        internal fun renameProperty(specs: Pair<ParameterSpec, PropertySpec>, renamer: (String) -> String): Pair<ParameterSpec, PropertySpec> {
+            val (paramSpec, propertySpec) = specs
+
+            val newPropertyName = renamer(paramSpec.name)
+
+            return Pair(
+                paramSpec.toBuilder(newPropertyName)
+                    .build(),
+                propertySpec.toBuilder(newPropertyName)
+                    .initializer(newPropertyName)
+                    .build()
+            )
+        }
+    }
 }

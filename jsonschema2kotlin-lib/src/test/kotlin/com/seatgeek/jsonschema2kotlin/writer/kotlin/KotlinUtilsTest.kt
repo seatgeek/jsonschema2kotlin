@@ -1,8 +1,6 @@
 package com.seatgeek.jsonschema2kotlin.writer.kotlin
 
-import net.jimblackler.jsonschemafriend.Schema
 import org.junit.Test
-import org.mockito.kotlin.mock
 
 internal class KotlinUtilsTest {
     val basicJsonSchemaValidName = """

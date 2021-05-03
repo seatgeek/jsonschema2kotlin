@@ -19,7 +19,7 @@ class StringEnumClassNameInterceptors(private val format: String) : EnumClassInt
 }
 
 class StringPropertyNameInterceptor(private val format: String) : PropertyInterceptor {
-    override fun intercept(schema: Schema, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec> {
+    override fun intercept(schema: Schema, jsonPropertyName: String, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec> {
         val newName = specs.first.name
             .let {
                 it[0].toUpperCase() + it.substring(1)
