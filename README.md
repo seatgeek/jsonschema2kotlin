@@ -1,0 +1,3 @@
+# jsonschema2kotlin
+
+## Parcelize
