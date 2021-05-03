@@ -1,0 +1,12 @@
+*.iml
+.gradle
+**/local.properties
+/.idea
+.DS_Store
+*/build
+
+# Good name for a test JSON file
+inputs/
+
+# Good name for a test output directory
+outputs/
