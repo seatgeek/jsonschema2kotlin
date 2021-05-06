@@ -276,10 +276,10 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
             } else {
                 // No properties at all, which means this is a "dictionary" (i.e. map)
                 Map::class.asTypeName()
-                    .parameterizedBy(String::class.asTypeName(), additionalProperties.typeName(packageName, isRequired))
+                    .parameterizedBy(String::class.asTypeName(), additionalProperties.typeName(packageName, true))
             }
         }
-        type == SchemaType.ARRAY -> List::class.asTypeName().parameterizedBy(this.items.typeName(packageName, isRequired))
+        type == SchemaType.ARRAY -> List::class.asTypeName().parameterizedBy(this.items.typeName(packageName, true))
         else -> primitiveTypeName()
     }.nullable(!isRequired)
 
