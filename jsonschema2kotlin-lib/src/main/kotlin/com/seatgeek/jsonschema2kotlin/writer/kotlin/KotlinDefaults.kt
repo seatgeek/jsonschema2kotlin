@@ -11,7 +11,7 @@ import com.seatgeek.jsonschema2kotlin.writer.kotlin.interceptor.SafePropertyName
 object KotlinDefaults {
     fun defaultDataClassInterceptors(): List<DataClassInterceptor> = listOf(SafeClassNameInterceptor)
 
-    fun defaultEnumInterceptors(): List<EnumClassInterceptor> = listOf(CommonCaseEnumClassInterceptor)
+    fun defaultEnumClassInterceptors(): List<EnumClassInterceptor> = listOf(CommonCaseEnumClassInterceptor)
 
     fun defaultPropertyInterceptors(): List<PropertyInterceptor> = listOf(SafePropertyNameInterceptor, BooleanPropertyNamePrefixInterceptor)
 }

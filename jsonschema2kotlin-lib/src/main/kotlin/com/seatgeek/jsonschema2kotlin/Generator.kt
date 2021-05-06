@@ -66,7 +66,7 @@ class Generator private constructor(private val config: Builder.Config) {
             /**
              * Interceptors applied to the enum classes
              */
-            val enumClassClassInterceptors: List<EnumClassInterceptor> = KotlinDefaults.defaultEnumInterceptors(),
+            val enumClassInterceptors: List<EnumClassInterceptor> = KotlinDefaults.defaultEnumClassInterceptors(),
         ) {
             data class Input(val paths: List<File>)
 

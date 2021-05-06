@@ -28,7 +28,7 @@ class StringPropertyNameInterceptor(private val format: String) : PropertyInterc
                 format.format(it)
             }
             .let {
-                it[0].toUpperCase() + it.substring(1)
+                it[0].toLowerCase() + it.substring(1)
             }
 
         return Pair(

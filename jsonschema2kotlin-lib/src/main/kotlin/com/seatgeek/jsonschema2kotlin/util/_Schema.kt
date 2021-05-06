@@ -25,15 +25,13 @@ enum class SchemaType {
     }
 }
 
+@Suppress("UNCHECKED_CAST")
+private val Schema.schemaObjectType: String?
+    get() = (schemaObject as? Map<String, String>)?.get("type")
+
 val Schema.type: SchemaType
     get() {
-        val schemaObject = schemaObject
-        explicitTypes
-        return if (schemaObject is Map<*, *>) {
-            schemaObject["type"] as? String
-        } else {
-            null
-        }?.let {
+        return (schemaObjectType ?: allOf?.first()?.schemaObjectType)?.let {
             SchemaType.fromString(it)
         } ?: throw IllegalStateException("Trying to parse Schema.type failed for $this")
     }

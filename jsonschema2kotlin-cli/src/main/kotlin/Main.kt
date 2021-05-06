@@ -99,7 +99,7 @@ fun main(args: Array<String>) {
                 dataClassInterceptors = it.dataClassInterceptors
                     .plus(dataClassNameInterceptors)
                     .plus(recipes.flatMap { it.interceptors.dataClassNameInterceptors }),
-                enumClassClassInterceptors = it.enumClassClassInterceptors
+                enumClassInterceptors = it.enumClassInterceptors
                     .plus(enumClassNameInterceptors)
                     .plus(recipes.flatMap { it.interceptors.enumClassNameInterceptors }),
                 propertyInterceptors = it.propertyInterceptors

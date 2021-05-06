@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    id("com.github.johnrengelman.shadow") version "6.0.0"
     kotlin("jvm")
 }
 
@@ -27,7 +28,6 @@ dependencies {
 
     implementation("com.squareup.okio:okio:3.0.0-alpha.4")
 
-
     testImplementation(kotlin("test-junit"))
     testImplementation("org.mockito.kotlin:mockito-kotlin:3.1.0")
 }
@@ -36,8 +36,33 @@ tasks.test {
     useJUnit()
 }
 
-tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "1.8"
+tasks.named<Jar>("jar") {
+    manifest {
+        attributes("Automatic-Module-Name" to group)
+    }
 }
 
-val compileKotlin: KotlinCompile by tasks
+tasks.withType<KotlinCompile>() {
+    kotlinOptions {
+        jvmTarget = "1.8"
+        freeCompilerArgs = freeCompilerArgs + listOf("-Xopt-in=kotlin.RequiresOptIn")
+    }
+}
+
+// val compileKotlin: KotlinCompile by tasks
+
+tasks.shadowJar.apply {
+    configure {
+        archiveClassifier.set("shadow")
+
+        minimize()
+
+        exclude(
+            "**/*.kotlin_metadata",
+            "**/*.kotlin_module",
+            "**/*.kotlin_builtins",
+            "**/*LICENSE*",
+            "module-info.class"
+        )
+    }
+}
