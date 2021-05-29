@@ -10,9 +10,12 @@ import net.jimblackler.jsonschemafriend.Schema
 
 internal object BooleanPropertyNamePrefixInterceptor : PropertyInterceptor {
     override fun intercept(schema: Schema, jsonPropertyName: String, specs: Pair<ParameterSpec, PropertySpec>): Pair<ParameterSpec, PropertySpec> {
-        return if (schema.type == SchemaType.BOOLEAN) {
+        return if (schema.type == SchemaType.BOOLEAN
+            && !specs.first.name.startsWith("is", true)
+            && !specs.first.name.startsWith("has", true)
+        ) {
             renameProperty(specs) {
-                "is" + it[0].toUpperCase() + it.substring(1)
+                "is" + it.replaceFirstChar(Char::uppercaseChar)
             }
         } else {
             specs

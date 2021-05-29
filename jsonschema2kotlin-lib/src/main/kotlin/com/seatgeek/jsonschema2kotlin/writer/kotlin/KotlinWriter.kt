@@ -1,6 +1,7 @@
 package com.seatgeek.jsonschema2kotlin.writer.kotlin
 
 import com.seatgeek.jsonschema2kotlin.Generator
+import com.seatgeek.jsonschema2kotlin.interceptor.EnumConstantInterceptor
 import com.seatgeek.jsonschema2kotlin.util.SchemaType
 import com.seatgeek.jsonschema2kotlin.util.isEnum
 import com.seatgeek.jsonschema2kotlin.util.requireEnum
@@ -75,7 +76,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
     private fun createClass(schema: Schema): TypeSpec? {
         val typeSpec = schemaRegistry[schema] ?: if (schema.isEnum) {
             // Enum (enum class)
-            createEnumClass(schema).let {
+            createEnumClass(schema, config.enumConstantInterceptors).let {
                 config.enumClassInterceptors.foldRight(it) { enumClassInterceptor, acc ->
                     enumClassInterceptor.intercept(schema, acc)
                 }
@@ -97,7 +98,7 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
         return typeSpec
     }
 
-    private fun createEnumClass(schema: Schema): TypeSpec {
+    private fun createEnumClass(schema: Schema, enumConstantInterceptors: List<EnumConstantInterceptor>): TypeSpec {
         schema.requireEnum()
 
         return TypeSpec.enumBuilder(ClassName(config.packageName, schema.title))
@@ -106,7 +107,14 @@ class KotlinWriter(private val config: Generator.Builder.Config) : SchemaModelWr
                 schema.enums
                     // TODO validate what this looks like for non-strings?
                     .filterIsInstance<String>()
-                    .forEach(this::addEnumConstant)
+                    .map { jsonPropertyName ->
+                        enumConstantInterceptors.foldRight((jsonPropertyName to TypeSpec.anonymousClassBuilder().build())) { interceptor, pair ->
+                            interceptor.intercept(schema, jsonPropertyName, pair)
+                        }
+                    }
+                    .forEach {
+                        addEnumConstant(it.first, it.second)
+                    }
             }
             .build()
     }

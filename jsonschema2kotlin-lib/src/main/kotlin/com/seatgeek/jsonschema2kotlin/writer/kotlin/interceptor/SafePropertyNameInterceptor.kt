@@ -10,7 +10,7 @@ import net.jimblackler.jsonschemafriend.Schema
  * Produces lowerCamelCase names that should be safe for use with Kotlin
  */
 internal object SafePropertyNameInterceptor : PropertyInterceptor {
-    internal val reservedKeywords = listOf(
+    internal val reservedKotlinKeywords = listOf(
         "as",
         "break",
         "class",
@@ -49,7 +49,7 @@ internal object SafePropertyNameInterceptor : PropertyInterceptor {
                     spacedString.toCharArray().mapIndexed { index, c ->
                         // Uppercase everything after replaced bad chars for UpperCamelCase
                         if (index == 0 || spacedString[index - 1] == ' ') {
-                            c.toUpperCase()
+                            c.uppercaseChar()
                         } else {
                             c
                         }
@@ -57,13 +57,11 @@ internal object SafePropertyNameInterceptor : PropertyInterceptor {
                 }
                 .replace(" ", "")
                 // Now lowercase first letter
-                .let {
-                    it[0].toLowerCase() + it.substring(1)
-                }
+                .replaceFirstChar(Char::lowercaseChar)
                 // Hard keywords from https://www.programiz.com/kotlin-programming/keywords-identifiers
                 // Replaces only if it's exactly and only the word
                 .replace(
-                    regex = "^(${reservedKeywords.joinToString("|")})$".toRegex(),
+                    regex = "^(${reservedKotlinKeywords.joinToString("|")})$".toRegex(),
                     replacement = "\$1_"
                 )
         }

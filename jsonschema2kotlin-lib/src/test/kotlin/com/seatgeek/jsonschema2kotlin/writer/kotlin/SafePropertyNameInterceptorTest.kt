@@ -11,7 +11,7 @@ import org.mockito.kotlin.mock
 internal class SafePropertyNameInterceptorTest {
     @Test
     fun `reserved keywords are converted to non-reserved keyword property names`() {
-        SafePropertyNameInterceptor.reservedKeywords.forEach { keyword ->
+        SafePropertyNameInterceptor.reservedKotlinKeywords.forEach { keyword ->
             val paramSpec = ParameterSpec.builder(keyword, String::class.asTypeName()).build()
             val propSpec = PropertySpec.builder(keyword, String::class.asTypeName()).initializer(keyword).build()
 

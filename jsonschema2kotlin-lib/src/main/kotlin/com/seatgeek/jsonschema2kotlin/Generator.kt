@@ -2,6 +2,7 @@ package com.seatgeek.jsonschema2kotlin
 
 import com.seatgeek.jsonschema2kotlin.interceptor.DataClassInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.EnumClassInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.EnumConstantInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.PropertyInterceptor
 import com.seatgeek.jsonschema2kotlin.writer.SinkFactory
 import com.seatgeek.jsonschema2kotlin.writer.kotlin.KotlinDefaults
@@ -67,6 +68,10 @@ class Generator private constructor(private val config: Builder.Config) {
              * Interceptors applied to the enum classes
              */
             val enumClassInterceptors: List<EnumClassInterceptor> = KotlinDefaults.defaultEnumClassInterceptors(),
+            /**
+             * Interceptors applied to the enum constants
+             */
+            val enumConstantInterceptors: List<EnumConstantInterceptor> = KotlinDefaults.defaultEnumConstantInterceptors(),
         ) {
             data class Input(val paths: List<File>)
 

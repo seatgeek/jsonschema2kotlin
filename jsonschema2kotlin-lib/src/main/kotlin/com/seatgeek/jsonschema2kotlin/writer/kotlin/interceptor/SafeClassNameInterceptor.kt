@@ -20,7 +20,7 @@ internal object SafeClassNameInterceptor : DataClassInterceptor {
                 it.toCharArray().mapIndexed { index, c ->
                     // Uppercase everything after replaced bad chars for UpperCamelCase
                     if (index == 0 || it[index - 1] == ' ') {
-                        c.toUpperCase()
+                        c.uppercaseChar()
                     } else {
                         c
                     }

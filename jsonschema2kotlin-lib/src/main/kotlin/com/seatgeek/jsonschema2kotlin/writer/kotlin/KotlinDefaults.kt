@@ -2,6 +2,7 @@ package com.seatgeek.jsonschema2kotlin.writer.kotlin
 
 import com.seatgeek.jsonschema2kotlin.interceptor.DataClassInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.EnumClassInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.EnumConstantInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.PropertyInterceptor
 import com.seatgeek.jsonschema2kotlin.writer.kotlin.interceptor.BooleanPropertyNamePrefixInterceptor
 import com.seatgeek.jsonschema2kotlin.writer.kotlin.interceptor.CommonCaseEnumClassInterceptor
@@ -14,4 +15,6 @@ object KotlinDefaults {
     fun defaultEnumClassInterceptors(): List<EnumClassInterceptor> = listOf(CommonCaseEnumClassInterceptor)
 
     fun defaultPropertyInterceptors(): List<PropertyInterceptor> = listOf(SafePropertyNameInterceptor, BooleanPropertyNamePrefixInterceptor)
+
+    fun defaultEnumConstantInterceptors(): List<EnumConstantInterceptor> = emptyList()
 }
