@@ -5,7 +5,9 @@ package com.seatgeek.jsonschema2kotlin.app
 import com.seatgeek.jsonschema2kotlin.Generator
 import com.seatgeek.jsonschema2kotlin.interceptor.DataClassInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.EnumClassInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.EnumConstantInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.PropertyInterceptor
+import com.seatgeek.jsonschema2kotlin.interceptor.recipes.GsonSerializedEnumInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.recipes.GsonSerializedNamePropertyInterceptor
 import com.seatgeek.jsonschema2kotlin.interceptor.recipes.ParcelizeDataClassInterceptor
 import kotlinx.cli.ArgParser
@@ -113,11 +115,12 @@ fun main(args: Array<String>) {
 
 internal enum class Recipes(val interceptors: Interceptors) {
     PARCELIZE(Interceptors(dataClassNameInterceptors = listOf(ParcelizeDataClassInterceptor))),
-    GSON(Interceptors(propertyInterceptors = listOf(GsonSerializedNamePropertyInterceptor)));
+    GSON(Interceptors(propertyInterceptors = listOf(GsonSerializedNamePropertyInterceptor), enumConstantInterceptors = listOf(GsonSerializedEnumInterceptor)));
 
     internal data class Interceptors(
         val dataClassNameInterceptors: List<DataClassInterceptor> = emptyList(),
         val enumClassNameInterceptors: List<EnumClassInterceptor> = emptyList(),
+        val enumConstantInterceptors: List<EnumConstantInterceptor> = emptyList(),
         val propertyInterceptors: List<PropertyInterceptor> = emptyList(),
     )
 }

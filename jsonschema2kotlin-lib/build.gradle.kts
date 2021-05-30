@@ -24,7 +24,7 @@ dependencies {
 
     // TODO update once https://github.com/square/kotlinpoet/pull/1075 merges
     // api("com.squareup:kotlinpoet:1.8.0")
-    api(files("libs/kotlinpoet-1.9.0-SNAPSHOT-eff194b.jar"))
+    api (files("libs/kotlinpoet-1.9.0-SNAPSHOT-2c072cf.jar"))
 
     implementation("com.squareup.okio:okio:3.0.0-alpha.4")
 

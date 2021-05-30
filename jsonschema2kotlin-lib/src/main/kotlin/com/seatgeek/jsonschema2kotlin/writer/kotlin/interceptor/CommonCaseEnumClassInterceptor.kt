@@ -12,8 +12,7 @@ internal object CommonCaseEnumClassInterceptor : EnumClassInterceptor {
         return typeSpec.toBuilder()
             .apply {
                 val updated = enumConstants.map { (key, typeSpec) ->
-                    key.toUpperCase()
-                        .replace("[^A-Za-z0-9]+".toRegex(), "_") to typeSpec
+                    key.uppercase().replace("[^A-Za-z0-9]+".toRegex(), "_") to typeSpec
                 }
 
                 enumConstants.clear()
