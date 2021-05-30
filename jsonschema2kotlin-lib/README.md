@@ -3,6 +3,17 @@
 This is the core library that implements conversion from JsonSchema into Kotlin data class
 implementations.
 
+## Dependency
+
+```groovy
+repositories {
+    maven { url "https://jitpack.io" }
+}
+dependencies {
+     implementation 'com.github.seatgeek:jsonschema2kotlin:0.1'
+}
+```
+
 ## Usage
 
 ```kotlin

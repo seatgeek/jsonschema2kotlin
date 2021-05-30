@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     id("com.github.johnrengelman.shadow") version "6.0.0"
     kotlin("jvm")
+    `maven-publish`
 }
 
 group = "com.seatgeek.jsonschema2kotlin"
